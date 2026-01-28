@@ -1,0 +1,13 @@
+aiogram>=3.0
+pydantic
+pydantic-settings
+sqlalchemy
+alembic
+asyncpg
+redis
+python-dotenv
+pytest
+pytest-asyncio
+aiosqlite
+watchdog
+
