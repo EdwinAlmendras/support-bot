@@ -10,3 +10,4 @@ services:
       - ./data:/app/data
     env_file:
       - .env
+    network_mode: "host"

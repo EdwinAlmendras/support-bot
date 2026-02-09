@@ -7,14 +7,15 @@ from src.infrastructure.database.models import BotSetting
 DEFAULT_SETTINGS = {
     "delete_links": "true",
     "delete_joins": "true",
+    "welcome_enabled": "true",
 }
 
 class SettingsService:
     @staticmethod
-    async def get_setting(key: str) -> bool:
+    async def get_setting(chat_id: int, key: str) -> bool:
         async with async_session() as session:
             result = await session.execute(
-                select(BotSetting).where(BotSetting.key == key)
+                select(BotSetting).where(BotSetting.chat_id == chat_id, BotSetting.key == key)
             )
             setting = result.scalars().first()
             
@@ -22,11 +23,11 @@ class SettingsService:
             return val.lower() == "true"
 
     @staticmethod
-    async def toggle_setting(key: str) -> bool:
+    async def toggle_setting(chat_id: int, key: str) -> bool:
         async with async_session() as session:
             # Check current
             result = await session.execute(
-                select(BotSetting).where(BotSetting.key == key)
+                select(BotSetting).where(BotSetting.chat_id == chat_id, BotSetting.key == key)
             )
             setting = result.scalars().first()
             
@@ -36,45 +37,43 @@ class SettingsService:
                 setting.value = new_val
                 await session.merge(setting)
             else:
-                new_val = "false" if DEFAULT_SETTINGS.get(key) == "true" else "true"
-                # If not exists but default is true, toggling means setting to false
-                # This logic is slightly complex, let's simplify:
-                # If not in DB, assume default.
                 current = DEFAULT_SETTINGS.get(key, "false")
                 new_val = "false" if current == "true" else "true"
-                session.add(BotSetting(key=key, value=new_val))
+                session.add(BotSetting(chat_id=chat_id, key=key, value=new_val))
             
             await session.commit()
             return new_val == "true"
 
     @staticmethod
-    async def get_all_settings():
+    async def get_all_settings(chat_id: int):
         settings = DEFAULT_SETTINGS.copy()
         async with async_session() as session:
-            result = await session.execute(select(BotSetting))
+            result = await session.execute(
+                select(BotSetting).where(BotSetting.chat_id == chat_id)
+            )
             db_settings = result.scalars().all()
             for s in db_settings:
                 settings[s.key] = s.value
         return settings
 
     @staticmethod
-    async def get_setting_str(key: str, default: str = "") -> str:
+    async def get_setting_str(chat_id: int, key: str, default: str = "") -> str:
         async with async_session() as session:
             result = await session.execute(
-                select(BotSetting).where(BotSetting.key == key)
+                select(BotSetting).where(BotSetting.chat_id == chat_id, BotSetting.key == key)
             )
             setting = result.scalars().first()
             return setting.value if setting else default
             
     @staticmethod
-    async def set_setting(key: str, value: str):
+    async def set_setting(chat_id: int, key: str, value: str):
         async with async_session() as session:
             result = await session.execute(
-                select(BotSetting).where(BotSetting.key == key)
+                select(BotSetting).where(BotSetting.chat_id == chat_id, BotSetting.key == key)
             )
             setting = result.scalars().first()
             if setting:
                 setting.value = value
             else:
-                session.add(BotSetting(key=key, value=value))
+                session.add(BotSetting(chat_id=chat_id, key=key, value=value))
             await session.commit()
